@@ -1,6 +1,6 @@
 {
   "title": "준비해 둔 질문",
-  "owner": "질문과 SQL은 사람이 골랐습니다. «확인할 값»은 20_데이터/실측결과.md 에서 옵니다.",
+  "owner": "질문과 SQL은 사람이 골랐습니다. «확인할 값»은 20_데이터/실측결과.md 에서 옵니다. plan_churn · ticket_churn은 하이가 넣었습니다.",
   "files": [
     { "match": "상담내역", "table": "support_tickets" },
     { "match": "고객목록", "table": "customers" },
@@ -180,6 +180,50 @@
         {
           "col": "실제_고객",
           "want": 49985
+        }
+      ]
+    },
+    {
+      "id": "plan_churn",
+      "q": "2025년에 요금제별로 고객 중 떠난 비율은 얼마인가요?",
+      "judge": "떠난 <수>가 아니라 <비율>로 본다",
+      "sql": "SELECT plan_type AS 요금제,\n       COUNT(*) AS 고객,\n       SUM(CASE WHEN is_churned THEN 1 ELSE 0 END) AS 이탈,\n       ROUND(100.0 * AVG(CASE WHEN is_churned THEN 1 ELSE 0 END), 1) AS 이탈률\nFROM customers\nGROUP BY plan_type\nORDER BY 이탈률 DESC",
+      "check": [
+        {
+          "where": {
+            "요금제": "알뜰"
+          },
+          "col": "이탈률",
+          "want": 19.5
+        },
+        {
+          "where": {
+            "요금제": "5G프리미엄"
+          },
+          "col": "이탈률",
+          "want": 10.8
+        }
+      ]
+    },
+    {
+      "id": "ticket_churn",
+      "q": "2025년에 문의를 한 번 이상 한 고객과 한 번도 안 한 고객 중 떠난 비율은 각각 얼마인가요?",
+      "judge": "문의가 한 번도 없는 고객도 비교에 넣는다. 이 답으로 ‹문의가 떠나게 만든다›고 말하지 않는다",
+      "sql": "WITH t AS (\n  SELECT customer_id, COUNT(*) AS 문의수\n  FROM support_tickets\n  WHERE created_date >= DATE '2025-01-01' AND created_date < DATE '2026-01-01'\n  GROUP BY customer_id\n)\nSELECT CASE WHEN t.customer_id IS NULL THEN '문의 없음' ELSE '문의 1번 이상' END AS 집단,\n       COUNT(*) AS 고객,\n       SUM(CASE WHEN c.is_churned THEN 1 ELSE 0 END) AS 이탈,\n       ROUND(100.0 * AVG(CASE WHEN c.is_churned THEN 1 ELSE 0 END), 1) AS 이탈률\nFROM customers c\nLEFT JOIN t ON t.customer_id = c.customer_id\nGROUP BY 1\nORDER BY 이탈률 DESC",
+      "check": [
+        {
+          "where": {
+            "집단": "문의 없음"
+          },
+          "col": "고객",
+          "want": 26602
+        },
+        {
+          "where": {
+            "집단": "문의 1번 이상"
+          },
+          "col": "이탈률",
+          "want": 9.2
         }
       ]
     }
